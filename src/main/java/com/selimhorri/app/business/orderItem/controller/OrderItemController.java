@@ -29,45 +29,24 @@ public class OrderItemController {
 		return ResponseEntity.ok(this.orderItemClientService.findAll().getBody());
 	}
 	
-	@GetMapping("/{orderId}/{productId}")
+	@GetMapping("/{orderId}")
 	public ResponseEntity<OrderItemDto> findById(
-			@PathVariable("orderId") final String orderId, 
-			@PathVariable("productId") final String productId) {
-		return ResponseEntity.ok(this.orderItemClientService.findById(new OrderItemId(Integer.parseInt(productId), 
-				Integer.parseInt(orderId))).getBody());
+			@PathVariable("orderId") final String orderId) {
+		return ResponseEntity.ok(this.orderItemClientService.findById(orderId).getBody());
 	}
 	
-	@GetMapping("/find")
-	public ResponseEntity<OrderItemDto> findById(@RequestBody final OrderItemId orderItemId) {
-		return ResponseEntity.ok(this.orderItemClientService.findById(orderItemId).getBody());
-	}
 	
 	@PostMapping
 	public ResponseEntity<OrderItemDto> save(@RequestBody final OrderItemDto orderItemDto) {
 		return ResponseEntity.ok(this.orderItemClientService.save(orderItemDto).getBody());
 	}
-	
-	@PutMapping
-	public ResponseEntity<OrderItemDto> update(@RequestBody final OrderItemDto orderItemDto) {
-		return ResponseEntity.ok(this.orderItemClientService.update(orderItemDto).getBody());
-	}
-	
-	@DeleteMapping("/{orderId}/{productId}")
+
+	@DeleteMapping("/{orderId}")
 	public ResponseEntity<Boolean> deleteById(
-			@PathVariable("orderId") final String orderId, 
-			@PathVariable("productId") final String productId) {
-		this.orderItemClientService.deleteById(new OrderItemId(Integer.parseInt(orderId), 
-				Integer.parseInt(productId))).getBody();
+			@PathVariable("orderId") final String orderId) {
+		this.orderItemClientService.deleteById(orderId).getBody();
 		return ResponseEntity.ok(true);
-	}
-	
-	@DeleteMapping("/delete")
-	public ResponseEntity<Boolean> deleteById(@RequestBody final OrderItemId orderItemId) {
-		this.orderItemClientService.deleteById(orderItemId).getBody();
-		return ResponseEntity.ok(true);
-	}
-	
-	
+	}	
 	
 }
 
