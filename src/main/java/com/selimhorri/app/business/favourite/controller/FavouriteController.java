@@ -29,17 +29,11 @@ public class FavouriteController {
 		return ResponseEntity.ok(this.favouriteClientService.findAll().getBody());
 	}
 	
-	@GetMapping("/{userId}/{productId}/{likeDate}")
+	@GetMapping("/{userId}/{productId}")
 	public ResponseEntity<FavouriteDto> findById(
 			@PathVariable("userId") final String userId, 
-			@PathVariable("productId") final String productId, 
-			@PathVariable("likeDate") final String likeDate) {
-		return ResponseEntity.ok(this.favouriteClientService.findById(userId, productId, likeDate).getBody());
-	}
-	
-	@GetMapping("/find")
-	public ResponseEntity<FavouriteDto> findById(@RequestBody final FavouriteId favouriteId) {
-		return ResponseEntity.ok(this.favouriteClientService.findById(favouriteId).getBody());
+			@PathVariable("productId") final String productId) {
+		return ResponseEntity.ok(this.favouriteClientService.findById(userId, productId).getBody());
 	}
 	
 	@PostMapping
@@ -52,22 +46,13 @@ public class FavouriteController {
 		return ResponseEntity.ok(this.favouriteClientService.update(favouriteDto).getBody());
 	}
 	
-	@DeleteMapping("/{userId}/{productId}/{likeDate}")
+	@DeleteMapping("/{userId}/{productId}")
 	public ResponseEntity<Boolean> deleteById(
 			@PathVariable("userId") final String userId, 
-			@PathVariable("productId") final String productId, 
-			@PathVariable("likeDate") final String likeDate) {
-		this.favouriteClientService.deleteById(userId, productId, likeDate).getBody();
+			@PathVariable("productId") final String productId) {
+		this.favouriteClientService.deleteById(userId, productId).getBody();
 		return ResponseEntity.ok(true);
 	}
-	
-	@DeleteMapping("/delete")
-	public ResponseEntity<Boolean> deleteById(@RequestBody final FavouriteId favouriteId) {
-		this.favouriteClientService.deleteById(favouriteId).getBody();
-		return ResponseEntity.ok(true);
-	}
-	
-	
 	
 }
 
