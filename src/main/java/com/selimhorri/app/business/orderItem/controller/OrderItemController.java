@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.selimhorri.app.business.orderItem.model.OrderItemDto;
-import com.selimhorri.app.business.orderItem.model.OrderItemId;
 import com.selimhorri.app.business.orderItem.model.response.OrderItemOrderItemServiceDtoCollectionResponse;
 import com.selimhorri.app.business.orderItem.service.OrderItemClientService;
 
