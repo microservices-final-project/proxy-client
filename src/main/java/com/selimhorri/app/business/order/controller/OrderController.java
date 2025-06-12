@@ -7,6 +7,7 @@ import javax.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -48,12 +49,9 @@ public class OrderController {
 		return ResponseEntity.ok(this.orderClientService.save(orderDto).getBody());
 	}
 	
-	@PutMapping
-	public ResponseEntity<OrderDto> update(
-			@RequestBody 
-			@NotNull(message = "Input must not be NULL!") 
-			@Valid final OrderDto orderDto) {
-		return ResponseEntity.ok(this.orderClientService.update(orderDto).getBody());
+	@PatchMapping("/{orderId}/status")
+	public ResponseEntity<OrderDto> update(@PathVariable("orderId") @NotBlank(message = "Input must not be blank") @Valid final int orderId) {
+		return ResponseEntity.ok(this.orderClientService.updateStatus(orderId).getBody());
 	}
 	
 	@PutMapping("/{orderId}")
