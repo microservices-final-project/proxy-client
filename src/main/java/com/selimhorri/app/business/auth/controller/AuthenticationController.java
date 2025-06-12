@@ -40,9 +40,6 @@ public class AuthenticationController {
 		log.info("**Authentication controller, proceed with the request*\n");
 		return ResponseEntity.ok(this.authenticationService.authenticate(jwt));
 	}
-	
-	
-	
 }
 
 

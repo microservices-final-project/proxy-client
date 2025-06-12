@@ -193,6 +193,8 @@
 						<configuration>
 							<excludes>
 								<exclude>**/config/**</exclude>
+								<exclude>**/constant/**</exclude>
+								<exclude>**/security/**</exclude>
 								<exclude>**/dto/**</exclude>
 								<exclude>**/*Application*</exclude>
 								<exclude>**/model/**</exclude>
