@@ -2,9 +2,11 @@ package com.selimhorri.app.business.order.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,68 +14,80 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Set;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.ConstraintViolationException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
+import com.selimhorri.app.business.auth.enums.ResourceType;
+import com.selimhorri.app.business.auth.util.AuthUtil;
 import com.selimhorri.app.business.order.model.CartDto;
 import com.selimhorri.app.business.order.model.OrderDto;
 import com.selimhorri.app.business.order.model.UserDto;
 import com.selimhorri.app.business.order.model.response.CartOrderServiceDtoCollectionResponse;
 import com.selimhorri.app.business.order.service.CartClientService;
+import com.selimhorri.app.exception.wrapper.UnauthorizedException;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CartController - Unit Tests")
+@DisplayName("CartController Unit Tests")
 class CartControllerTest {
+
+    @Mock
+    private AuthUtil authUtil;
 
     @Mock
     private CartClientService cartClientService;
 
-    @InjectMocks
-    private CartController cartController;
+    @Mock
+    private HttpServletRequest request;
 
+    @Mock
+    private UserDetails userDetails;
+
+    private CartController cartController;
     private CartDto cartDto;
     private CartOrderServiceDtoCollectionResponse collectionResponse;
-    private UserDto userDto;
-    private OrderDto orderDto;
 
     @BeforeEach
     void setUp() {
+        // Create controller and inject mocks
+        cartController = new CartController(cartClientService);
+        ReflectionTestUtils.setField(cartController, "authUtil", authUtil);
+        
         // Setup UserDto
-        userDto = UserDto.builder()
+        UserDto userDto = UserDto.builder()
                 .userId(1)
                 .firstName("John")
                 .lastName("Doe")
                 .email("john.doe@example.com")
-                .phone("1234567890")
-                .imageUrl("http://example.com/image.jpg")
+                .phone("123456789")
                 .build();
 
         // Setup OrderDto
-        orderDto = OrderDto.builder()
+        OrderDto orderDto = OrderDto.builder()
                 .orderId(1)
-                .orderDesc("Test Order")
+                .orderDesc("Test order")
                 .orderStatus("PENDING")
-                .orderFee(100.0)
+                .orderFee(99.99)
                 .build();
 
         // Setup CartDto
-        Set<OrderDto> orders = new HashSet<>();
-        orders.add(orderDto);
-        
         cartDto = CartDto.builder()
                 .cartId(1)
                 .userId(1)
                 .userDto(userDto)
-                .orderDtos(orders)
+                .orderDtos(new HashSet<>(Arrays.asList(orderDto)))
                 .build();
 
         // Setup Collection Response
@@ -85,11 +99,11 @@ class CartControllerTest {
 
     @Test
     @DisplayName("Should find all carts successfully")
-    void testFindAll_Success() {
+    void findAll_ShouldReturnAllCarts_WhenCalled() {
         // Given
-        ResponseEntity<CartOrderServiceDtoCollectionResponse> mockResponse = 
+        ResponseEntity<CartOrderServiceDtoCollectionResponse> serviceResponse = 
             new ResponseEntity<>(collectionResponse, HttpStatus.OK);
-        when(cartClientService.findAll()).thenReturn(mockResponse);
+        when(cartClientService.findAll()).thenReturn(serviceResponse);
 
         // When
         ResponseEntity<CartOrderServiceDtoCollectionResponse> result = cartController.findAll();
@@ -97,162 +111,171 @@ class CartControllerTest {
         // Then
         assertNotNull(result);
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertNotNull(result.getBody());
-        assertEquals(1, result.getBody().getCollection().size());
-        
-        CartDto firstCart = result.getBody().getCollection().iterator().next();
-        assertEquals(1, firstCart.getCartId());
-        assertEquals(1, firstCart.getUserId());
-        
+        assertEquals(collectionResponse, result.getBody());
         verify(cartClientService, times(1)).findAll();
     }
 
     @Test
-    @DisplayName("Should find cart by ID successfully")
-    void testFindById_Success() {
+    @DisplayName("Should find cart by ID successfully when user is authorized")
+    void findById_ShouldReturnCart_WhenUserIsAuthorized() {
         // Given
         String cartId = "1";
-        ResponseEntity<CartDto> mockResponse = new ResponseEntity<>(cartDto, HttpStatus.OK);
-        when(cartClientService.findById(cartId)).thenReturn(mockResponse);
+        String userId = "1";
+        ResponseEntity<CartDto> serviceResponse = new ResponseEntity<>(cartDto, HttpStatus.OK);
+        
+        when(authUtil.getOwner(cartId, ResourceType.CARTS)).thenReturn(userId);
+        doNothing().when(authUtil).canActivate(request, userId, userDetails);
+        when(cartClientService.findById(cartId)).thenReturn(serviceResponse);
 
         // When
-        ResponseEntity<CartDto> result = cartController.findById(cartId);
+        ResponseEntity<CartDto> result = cartController.findById(cartId, request, userDetails);
 
         // Then
         assertNotNull(result);
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertNotNull(result.getBody());
-        assertEquals(1, result.getBody().getCartId());
-        assertEquals(1, result.getBody().getUserId());
-        assertEquals("John", result.getBody().getUserDto().getFirstName());
-        assertEquals("Doe", result.getBody().getUserDto().getLastName());
-        assertEquals(1, result.getBody().getOrderDtos().size());
-        
+        assertEquals(cartDto, result.getBody());
+        verify(authUtil, times(1)).getOwner(cartId, ResourceType.CARTS);
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
         verify(cartClientService, times(1)).findById(cartId);
     }
 
     @Test
-    @DisplayName("Should find cart by ID with different cart ID")
-    void testFindById_DifferentCartId() {
+    @DisplayName("Should throw UnauthorizedException when user is not authorized to find cart by ID")
+    void findById_ShouldThrowUnauthorizedException_WhenUserIsNotAuthorized() {
         // Given
-        String cartId = "999";
-        CartDto differentCart = CartDto.builder()
-                .cartId(999)
-                .userId(2)
-                .build();
-        ResponseEntity<CartDto> mockResponse = new ResponseEntity<>(differentCart, HttpStatus.OK);
-        when(cartClientService.findById(cartId)).thenReturn(mockResponse);
-
-        // When
-        ResponseEntity<CartDto> result = cartController.findById(cartId);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals(999, result.getBody().getCartId());
-        assertEquals(2, result.getBody().getUserId());
+        String cartId = "1";
+        String userId = "1";
         
-        verify(cartClientService, times(1)).findById(cartId);
+        when(authUtil.getOwner(cartId, ResourceType.CARTS)).thenReturn(userId);
+        doThrow(new UnauthorizedException("You can access to resources of your own"))
+            .when(authUtil).canActivate(request, userId, userDetails);
+
+        // When & Then
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            cartController.findById(cartId, request, userDetails);
+        });
+        
+        assertEquals("You can access to resources of your own", exception.getMessage());
+        verify(authUtil, times(1)).getOwner(cartId, ResourceType.CARTS);
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(cartClientService, times(0)).findById(anyString());
     }
 
     @Test
-    @DisplayName("Should save cart successfully")
-    void testSave_Success() {
+    @DisplayName("Should save cart successfully when user is authorized")
+    void save_ShouldReturnSavedCart_WhenUserIsAuthorized() {
         // Given
-        ResponseEntity<CartDto> mockResponse = new ResponseEntity<>(cartDto, HttpStatus.OK);
-        when(cartClientService.save(any(CartDto.class))).thenReturn(mockResponse);
+        String userId = "1";
+        ResponseEntity<CartDto> serviceResponse = new ResponseEntity<>(cartDto, HttpStatus.OK);
+        
+        doNothing().when(authUtil).canActivate(request, userId, userDetails);
+        when(cartClientService.save(cartDto)).thenReturn(serviceResponse);
 
         // When
-        ResponseEntity<CartDto> result = cartController.save(cartDto);
+        ResponseEntity<CartDto> result = cartController.save(cartDto, request, userDetails);
 
         // Then
         assertNotNull(result);
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertNotNull(result.getBody());
-        assertEquals(1, result.getBody().getCartId());
-        assertEquals(1, result.getBody().getUserId());
-        assertEquals("john.doe@example.com", result.getBody().getUserDto().getEmail());
-        
+        assertEquals(cartDto, result.getBody());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
         verify(cartClientService, times(1)).save(cartDto);
     }
 
     @Test
-    @DisplayName("Should save cart with minimal data")
-    void testSave_MinimalData() {
+    @DisplayName("Should throw UnauthorizedException when user is not authorized to save cart")
+    void save_ShouldThrowUnauthorizedException_WhenUserIsNotAuthorized() {
         // Given
-        CartDto minimalCart = CartDto.builder()
-                .userId(2)
-                .build();
+        String userId = "1";
         
-        CartDto savedCart = CartDto.builder()
-                .cartId(2)
-                .userId(2)
-                .build();
-        
-        ResponseEntity<CartDto> mockResponse = new ResponseEntity<>(savedCart, HttpStatus.OK);
-        when(cartClientService.save(any(CartDto.class))).thenReturn(mockResponse);
+        doThrow(new UnauthorizedException("You can access to resources of your own"))
+            .when(authUtil).canActivate(request, userId, userDetails);
 
-        // When
-        ResponseEntity<CartDto> result = cartController.save(minimalCart);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals(2, result.getBody().getCartId());
-        assertEquals(2, result.getBody().getUserId());
+        // When & Then
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            cartController.save(cartDto, request, userDetails);
+        });
         
-        verify(cartClientService, times(1)).save(minimalCart);
+        assertEquals("You can access to resources of your own", exception.getMessage());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(cartClientService, times(0)).save(any(CartDto.class));
     }
 
     @Test
-    @DisplayName("Should delete cart by ID successfully")
-    void testDeleteById_Success() {
+    @DisplayName("Should delete cart successfully when user is authorized")
+    void deleteById_ShouldReturnTrue_WhenUserIsAuthorizedAndDeletionSuccessful() {
         // Given
         String cartId = "1";
-        ResponseEntity<Boolean> mockResponse = new ResponseEntity<>(true, HttpStatus.OK);
-        when(cartClientService.deleteById(cartId)).thenReturn(mockResponse);
+        String userId = "1";
+        ResponseEntity<Boolean> serviceResponse = new ResponseEntity<>(true, HttpStatus.OK);
+        
+        when(authUtil.getOwner(cartId, ResourceType.CARTS)).thenReturn(userId);
+        doNothing().when(authUtil).canActivate(request, userId, userDetails);
+        when(cartClientService.deleteById(cartId)).thenReturn(serviceResponse);
 
         // When
-        ResponseEntity<Boolean> result = cartController.deleteById(cartId);
+        ResponseEntity<Boolean> result = cartController.deleteById(cartId, request, userDetails);
 
         // Then
         assertNotNull(result);
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertTrue(result.getBody());
-        
+        assertEquals(true, result.getBody());
+        verify(authUtil, times(1)).getOwner(cartId, ResourceType.CARTS);
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
         verify(cartClientService, times(1)).deleteById(cartId);
     }
 
     @Test
-    @DisplayName("Should delete cart by ID and return true regardless of service response")
-    void testDeleteById_AlwaysReturnsTrue() {
+    @DisplayName("Should throw UnauthorizedException when user is not authorized to delete cart")
+    void deleteById_ShouldThrowUnauthorizedException_WhenUserIsNotAuthorized() {
         // Given
-        String cartId = "999";
-        ResponseEntity<Boolean> mockResponse = new ResponseEntity<>(false, HttpStatus.OK);
-        when(cartClientService.deleteById(cartId)).thenReturn(mockResponse);
+        String cartId = "1";
+        String userId = "1";
+        
+        when(authUtil.getOwner(cartId, ResourceType.CARTS)).thenReturn(userId);
+        doThrow(new UnauthorizedException("You can access to resources of your own"))
+            .when(authUtil).canActivate(request, userId, userDetails);
+
+        // When & Then
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            cartController.deleteById(cartId, request, userDetails);
+        });
+        
+        assertEquals("You can access to resources of your own", exception.getMessage());
+        verify(authUtil, times(1)).getOwner(cartId, ResourceType.CARTS);
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(cartClientService, times(0)).deleteById(anyString());
+    }
+
+    @Test
+    @DisplayName("Should handle null response body from service")
+    void findAll_ShouldHandleNullResponseBody_WhenServiceReturnsNullBody() {
+        // Given
+        ResponseEntity<CartOrderServiceDtoCollectionResponse> serviceResponse = 
+            new ResponseEntity<>(null, HttpStatus.OK);
+        when(cartClientService.findAll()).thenReturn(serviceResponse);
 
         // When
-        ResponseEntity<Boolean> result = cartController.deleteById(cartId);
+        ResponseEntity<CartOrderServiceDtoCollectionResponse> result = cartController.findAll();
 
         // Then
         assertNotNull(result);
         assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertTrue(result.getBody()); // Controller always returns true
-        
-        verify(cartClientService, times(1)).deleteById(cartId);
+        assertEquals(null, result.getBody());
+        verify(cartClientService, times(1)).findAll();
     }
 
     @Test
-    @DisplayName("Should handle empty collection response")
-    void testFindAll_EmptyCollection() {
+    @DisplayName("Should handle empty cart collection")
+    void findAll_ShouldHandleEmptyCollection_WhenNoCartsExist() {
         // Given
-        CartOrderServiceDtoCollectionResponse emptyResponse = 
-            CartOrderServiceDtoCollectionResponse.builder()
-                .collection(Arrays.asList())
+        Collection<CartDto> emptyCarts = Arrays.asList();
+        CartOrderServiceDtoCollectionResponse emptyResponse = CartOrderServiceDtoCollectionResponse.builder()
+                .collection(emptyCarts)
                 .build();
-        ResponseEntity<CartOrderServiceDtoCollectionResponse> mockResponse = 
+        ResponseEntity<CartOrderServiceDtoCollectionResponse> serviceResponse = 
             new ResponseEntity<>(emptyResponse, HttpStatus.OK);
-        when(cartClientService.findAll()).thenReturn(mockResponse);
+        when(cartClientService.findAll()).thenReturn(serviceResponse);
 
         // When
         ResponseEntity<CartOrderServiceDtoCollectionResponse> result = cartController.findAll();
@@ -262,77 +285,23 @@ class CartControllerTest {
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
         assertEquals(0, result.getBody().getCollection().size());
-        
         verify(cartClientService, times(1)).findAll();
     }
 
     @Test
-    @DisplayName("Should handle cart with multiple orders")
-    void testFindById_CartWithMultipleOrders() {
+    @DisplayName("Should handle cart with null user ID")
+    void save_ShouldThrowException_WhenUserIdIsNull() {
         // Given
-        OrderDto order1 = OrderDto.builder()
-                .orderId(1)
-                .orderDesc("First Order")
-                .orderFee(50.0)
-                .build();
-        
-        OrderDto order2 = OrderDto.builder()
-                .orderId(2)
-                .orderDesc("Second Order")
-                .orderFee(75.0)
-                .build();
-
-        Set<OrderDto> orders = new HashSet<>();
-        orders.add(order1);
-        orders.add(order2);
-
-        CartDto cartWithMultipleOrders = CartDto.builder()
+        CartDto cartWithNullUserId = CartDto.builder()
                 .cartId(1)
-                .userId(1)
-                .orderDtos(orders)
+                .userId(null)
                 .build();
 
-        String cartId = "1";
-        ResponseEntity<CartDto> mockResponse = new ResponseEntity<>(cartWithMultipleOrders, HttpStatus.OK);
-        when(cartClientService.findById(cartId)).thenReturn(mockResponse);
+        // When & Then
+        assertThrows(NullPointerException.class, () -> {
+            cartController.save(cartWithNullUserId, request, userDetails);
+        });
 
-        // When
-        ResponseEntity<CartDto> result = cartController.findById(cartId);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals(2, result.getBody().getOrderDtos().size());
-        
-        verify(cartClientService, times(1)).findById(cartId);
-    }
-
-    @Test
-    @DisplayName("Should verify service method calls with correct parameters")
-    void testServiceMethodCalls() {
-        // Given
-        String cartId = "123";
-        ResponseEntity<CartDto> findByIdResponse = new ResponseEntity<>(cartDto, HttpStatus.OK);
-        ResponseEntity<CartDto> saveResponse = new ResponseEntity<>(cartDto, HttpStatus.OK);
-        ResponseEntity<Boolean> deleteResponse = new ResponseEntity<>(true, HttpStatus.OK);
-        ResponseEntity<CartOrderServiceDtoCollectionResponse> findAllResponse = 
-            new ResponseEntity<>(collectionResponse, HttpStatus.OK);
-
-        when(cartClientService.findById(cartId)).thenReturn(findByIdResponse);
-        when(cartClientService.save(cartDto)).thenReturn(saveResponse);
-        when(cartClientService.deleteById(cartId)).thenReturn(deleteResponse);
-        when(cartClientService.findAll()).thenReturn(findAllResponse);
-
-        // When
-        cartController.findById(cartId);
-        cartController.save(cartDto);
-        cartController.deleteById(cartId);
-        cartController.findAll();
-
-        // Then
-        verify(cartClientService, times(1)).findById(eq(cartId));
-        verify(cartClientService, times(1)).save(eq(cartDto));
-        verify(cartClientService, times(1)).deleteById(eq(cartId));
-        verify(cartClientService, times(1)).findAll();
+        verify(cartClientService, times(0)).save(any(CartDto.class));
     }
 }

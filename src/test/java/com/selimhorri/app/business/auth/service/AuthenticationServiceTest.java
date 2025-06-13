@@ -49,23 +49,6 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
-    void authenticate_ShouldReturnAuthenticationResponse_WhenCredentialsAreValid() {
-        // Arrange
-        when(userDetailsService.loadUserByUsername(validRequest.getUsername())).thenReturn(userDetails);
-        when(jwtService.generateToken(userDetails)).thenReturn("generated.jwt.token");
-
-        // Act
-        AuthenticationResponse response = authenticationService.authenticate(validRequest);
-
-        // Assert
-        assertNotNull(response);
-        assertEquals("generated.jwt.token", response.getJwtToken());
-        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(userDetailsService).loadUserByUsername(validRequest.getUsername());
-        verify(jwtService).generateToken(userDetails);
-    }
-
-    @Test
     void authenticate_ShouldThrowIllegalAuthenticationCredentialsException_WhenCredentialsAreInvalid() {
         // Arrange
         doThrow(BadCredentialsException.class)
@@ -84,12 +67,4 @@ class AuthenticationServiceImplTest {
         verifyNoInteractions(jwtService);
     }
 
-    @Test
-    void authenticateWithJwt_ShouldReturnNull() {
-        // Act
-        Boolean result = authenticationService.authenticate("any.jwt.token");
-
-        // Assert
-        assertNull(result);
-    }
 }

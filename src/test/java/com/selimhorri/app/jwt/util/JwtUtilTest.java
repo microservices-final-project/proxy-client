@@ -1,4 +1,4 @@
-package com.selimhorri.app.business.jwt.util;
+package com.selimhorri.app.jwt.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -36,7 +36,7 @@ class JwtUtilImplTest {
     @BeforeEach
     void setUp() {
         when(userDetails.getUsername()).thenReturn(username);
-        validToken = jwtUtil.generateToken(userDetails);
+        validToken = jwtUtil.generateToken(userDetails, "2");
     }
 
     @Test
@@ -45,7 +45,7 @@ class JwtUtilImplTest {
         when(userDetails.getUsername()).thenReturn(username);
 
         // When
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
 
         // Then
         assertNotNull(token);
@@ -56,7 +56,7 @@ class JwtUtilImplTest {
     @Test
     void testExtractUsername() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
 
         // When
         String extractedUsername = jwtUtil.extractUsername(token);
@@ -68,7 +68,7 @@ class JwtUtilImplTest {
     @Test
     void testExtractExpiration() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
         Date beforeGeneration = new Date();
 
         // When
@@ -87,7 +87,7 @@ class JwtUtilImplTest {
     @Test
     void testExtractClaims() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
         Function<Claims, String> claimsResolver = Claims::getSubject;
 
         // When
@@ -100,7 +100,7 @@ class JwtUtilImplTest {
     @Test
     void testExtractClaimsWithExpiration() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
         Function<Claims, Date> claimsResolver = Claims::getExpiration;
 
         // When
@@ -114,7 +114,7 @@ class JwtUtilImplTest {
     @Test
     void testValidateTokenWithValidToken() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
 
         // When
         Boolean isValid = jwtUtil.validateToken(token, userDetails);
@@ -126,7 +126,7 @@ class JwtUtilImplTest {
     @Test
     void testValidateTokenWithWrongUsername() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
         UserDetails wrongUserDetails = mock(UserDetails.class);
         when(wrongUserDetails.getUsername()).thenReturn("wronguser");
 
@@ -152,7 +152,7 @@ class JwtUtilImplTest {
             jwtUtil.extractExpiration(expiredToken);
         });
     }
-    
+
     @Test
     void testExtractUsernameWithInvalidToken() {
         // Given
@@ -200,7 +200,7 @@ class JwtUtilImplTest {
     @Test
     void testTokenContainsCorrectClaims() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
 
         // When
         String extractedUsername = jwtUtil.extractUsername(token);
@@ -216,7 +216,7 @@ class JwtUtilImplTest {
     void testGenerateTokenWithNullUserDetails() {
         // When & Then
         assertThrows(NullPointerException.class, () -> {
-            jwtUtil.generateToken(null);
+            jwtUtil.generateToken(null, null);
         });
     }
 
@@ -231,7 +231,7 @@ class JwtUtilImplTest {
     @Test
     void testValidateTokenWithNullUserDetails() {
         // Given
-        String token = jwtUtil.generateToken(userDetails);
+        String token = jwtUtil.generateToken(userDetails, "2");
 
         // When & Then
         assertThrows(NullPointerException.class, () -> {
@@ -259,8 +259,8 @@ class JwtUtilImplTest {
         when(userDetails2.getUsername()).thenReturn("user1");
 
         // When
-        String token1 = jwtUtil.generateToken(userDetails1);
-        String token2 = jwtUtil.generateToken(userDetails2);
+        String token1 = jwtUtil.generateToken(userDetails1, "2");
+        String token2 = jwtUtil.generateToken(userDetails2, "2");
 
         // Then
         String username1 = jwtUtil.extractUsername(token1);

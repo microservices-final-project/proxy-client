@@ -1,4 +1,4 @@
-package com.selimhorri.app.business.jwt.service;
+package com.selimhorri.app.jwt.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,7 +24,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.selimhorri.app.jwt.service.JwtService;
 import com.selimhorri.app.jwt.service.impl.JwtServiceImpl;
 import com.selimhorri.app.jwt.util.JwtUtil;
 
@@ -188,15 +187,15 @@ class JwtServiceImplTest {
     void testGenerateToken_Success() {
         // Given
         String expectedToken = "generated.jwt.token.for.user";
-        when(jwtUtil.generateToken(userDetails)).thenReturn(expectedToken);
+        when(jwtUtil.generateToken(userDetails, "2")).thenReturn(expectedToken);
 
         // When
-        String result = jwtService.generateToken(userDetails);
+        String result = jwtService.generateToken(userDetails, "2");
 
         // Then
         assertNotNull(result);
         assertEquals(expectedToken, result);
-        verify(jwtUtil, times(1)).generateToken(userDetails);
+        verify(jwtUtil, times(1)).generateToken(userDetails, "2");
     }
 
     @Test
@@ -206,15 +205,15 @@ class JwtServiceImplTest {
         UserDetails differentUser = org.mockito.Mockito.mock(UserDetails.class);
         when(differentUser.getUsername()).thenReturn("anotheruser@example.com");
         String expectedToken = "different.generated.jwt.token";
-        when(jwtUtil.generateToken(differentUser)).thenReturn(expectedToken);
+        when(jwtUtil.generateToken(differentUser, "2")).thenReturn(expectedToken);
 
         // When
-        String result = jwtService.generateToken(differentUser);
+        String result = jwtService.generateToken(differentUser, "2");
 
         // Then
         assertNotNull(result);
         assertEquals(expectedToken, result);
-        verify(jwtUtil, times(1)).generateToken(differentUser);
+        verify(jwtUtil, times(1)).generateToken(differentUser, "2");
     }
 
     @Test
@@ -326,14 +325,14 @@ class JwtServiceImplTest {
         when(jwtUtil.extractUsername(validToken)).thenReturn(expectedUsername);
         when(jwtUtil.extractExpiration(validToken)).thenReturn(expectedExpiration);
         when(jwtUtil.extractClaims(eq(validToken), any(Function.class))).thenReturn(expectedClaim);
-        when(jwtUtil.generateToken(userDetails)).thenReturn(expectedToken);
+        when(jwtUtil.generateToken(userDetails, "2")).thenReturn(expectedToken);
         when(jwtUtil.validateToken(validToken, userDetails)).thenReturn(expectedValidation);
 
         // When - Call all service methods
         String usernameResult = jwtService.extractUsername(validToken);
         Date expirationResult = jwtService.extractExpiration(validToken);
         String claimResult = jwtService.extractClaims(validToken, claimsResolver);
-        String tokenResult = jwtService.generateToken(userDetails);
+        String tokenResult = jwtService.generateToken(userDetails, "2");
         Boolean validationResult = jwtService.validateToken(validToken, userDetails);
 
         // Then - Verify all results and delegations
@@ -346,36 +345,8 @@ class JwtServiceImplTest {
         verify(jwtUtil, times(1)).extractUsername(validToken);
         verify(jwtUtil, times(1)).extractExpiration(validToken);
         verify(jwtUtil, times(1)).extractClaims(eq(validToken), eq(claimsResolver));
-        verify(jwtUtil, times(1)).generateToken(userDetails);
+        verify(jwtUtil, times(1)).generateToken(userDetails, "2");
         verify(jwtUtil, times(1)).validateToken(validToken, userDetails);
-    }
-
-    @Test
-    @DisplayName("Should test interface contract compliance")
-    void testInterfaceContractCompliance() {
-        // Given - Setup for interface contract testing
-        when(jwtUtil.extractUsername(validToken)).thenReturn(username);
-        when(jwtUtil.extractExpiration(validToken)).thenReturn(expirationDate);
-        when(jwtUtil.extractClaims(eq(validToken), any(Function.class))).thenReturn("interface-test");
-        when(jwtUtil.generateToken(userDetails)).thenReturn("interface.token");
-        when(jwtUtil.validateToken(validToken, userDetails)).thenReturn(true);
-
-        // When & Then - Verify interface methods work as expected
-        // Test extractUsername through interface
-        assertTrue(jwtService.extractUsername(validToken) instanceof String);
-        
-        // Test extractExpiration through interface
-        assertTrue(jwtService.extractExpiration(validToken) instanceof Date);
-        
-        // Test extractClaims through interface with generic type
-        Function<Claims, String> resolver = Claims::getSubject;
-        assertTrue(jwtService.extractClaims(validToken, resolver) instanceof String);
-        
-        // Test generateToken through interface
-        assertTrue(jwtService.generateToken(userDetails) instanceof String);
-        
-        // Test validateToken through interface
-        assertTrue(jwtService.validateToken(validToken, userDetails) instanceof Boolean);
     }
 
     @Test

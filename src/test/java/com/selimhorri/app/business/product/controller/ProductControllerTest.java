@@ -79,17 +79,6 @@ class ProductControllerUnitTest {
     }
 
     @Test
-    void update_ShouldUpdateProduct() {
-        when(productClientService.update(any(ProductDto.class)))
-            .thenReturn(ResponseEntity.ok(productDto));
-
-        ResponseEntity<ProductDto> response = productController.update(productDto);
-
-        assertNotNull(response);
-        assertEquals(1, response.getBody().getProductId());
-    }
-
-    @Test
     void updateWithId_ShouldUpdateProduct() {
         when(productClientService.update(eq("1"), any(ProductDto.class)))
             .thenReturn(ResponseEntity.ok(productDto));

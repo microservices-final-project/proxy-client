@@ -1,7 +1,6 @@
 package com.selimhorri.app.business.auth.controller;
 
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -67,31 +66,5 @@ class AuthenticationControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void validateJwt_ShouldReturnTrue_WhenValidJwt() throws Exception {
-        // Arrange
-        String jwt = "valid.jwt.token";
-        when(authenticationService.authenticate(jwt)).thenReturn(true);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/authenticate/jwt/{jwt}", jwt)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value(true));
-    }
-
-    @Test
-    void validateJwt_ShouldReturnFalse_WhenInvalidJwt() throws Exception {
-        // Arrange
-        String jwt = "invalid.jwt.token";
-        when(authenticationService.authenticate(jwt)).thenReturn(false);
-
-        // Act & Assert
-        mockMvc.perform(get("/api/authenticate/jwt/{jwt}", jwt)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value(false));
     }
 }

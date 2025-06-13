@@ -80,17 +80,7 @@ class CategoryControllerUnitTest {
         verify(categoryClientService, times(1)).save(any(CategoryDto.class));
     }
 
-    @Test
-    void update_ShouldUpdateCategory() {
-        when(categoryClientService.update(any(CategoryDto.class)))
-            .thenReturn(ResponseEntity.ok(categoryDto));
 
-        ResponseEntity<CategoryDto> response = categoryController.update(categoryDto);
-
-        assertNotNull(response);
-        assertEquals(1, response.getBody().getCategoryId());
-        verify(categoryClientService, times(1)).update(any(CategoryDto.class));
-    }
 
     @Test
     void updateWithId_ShouldUpdateSpecificCategory() {
