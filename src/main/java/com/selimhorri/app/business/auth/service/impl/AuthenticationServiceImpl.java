@@ -44,6 +44,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 		}
 		CredentialDto credentialDto = this.restTemplate.getForObject(API_URL + "/username/" + authenticationRequest.getUsername(),
 				CredentialDto.class);
+				System.out.println(credentialDto.getPassword());
+				System.out.println(credentialDto.getUsername());
+				System.out.println("++++++++++++++");
 
 		return new AuthenticationResponse(this.jwtService.generateToken(this.userDetailsService
 				.loadUserByUsername(authenticationRequest.getUsername()), credentialDto.getUserDto().getUserId().toString()));

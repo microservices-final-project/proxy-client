@@ -40,7 +40,6 @@ import com.selimhorri.app.business.order.model.OrderDto;
 import com.selimhorri.app.business.order.model.UserDto;
 import com.selimhorri.app.business.order.model.response.CartOrderServiceDtoCollectionResponse;
 import com.selimhorri.app.business.order.service.CartClientService;
-import com.selimhorri.app.config.security.TestConfiguration;
 import com.selimhorri.app.config.template.TemplateConfig;
 import com.selimhorri.app.jwt.service.JwtService;
 import com.selimhorri.app.jwt.util.JwtUtil;

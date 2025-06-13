@@ -41,7 +41,6 @@ import com.selimhorri.app.business.user.model.UserDto;
 import com.selimhorri.app.business.user.model.VerificationTokenDto;
 import com.selimhorri.app.business.user.model.response.UserUserServiceCollectionDtoResponse;
 import com.selimhorri.app.business.user.service.UserClientService;
-import com.selimhorri.app.config.security.TestConfiguration;
 import com.selimhorri.app.config.template.TemplateConfig;
 import com.selimhorri.app.jwt.service.JwtService; // Add this import
 import com.selimhorri.app.jwt.util.JwtUtil;
