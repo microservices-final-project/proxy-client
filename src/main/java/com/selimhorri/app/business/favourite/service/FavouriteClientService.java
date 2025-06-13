@@ -39,7 +39,7 @@ public interface FavouriteClientService {
 			@NotNull(message = "Input must not be NULL") 
 			@Valid final FavouriteDto favouriteDto);
 	
-	@DeleteMapping("/{userId}/{productId")
+	@DeleteMapping("/{userId}/{productId}")
 	public ResponseEntity<Boolean> deleteById(
 			@PathVariable("userId") final String userId, 
 			@PathVariable("productId") final String productId);

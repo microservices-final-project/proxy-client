@@ -148,6 +148,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 				.antMatchers(HttpMethod.DELETE, "/api/orders/*")
 				.hasAnyRole(RoleBasedAuthority.ROLE_ADMIN.getRole(), RoleBasedAuthority.ROLE_USER.getRole())
 
+				// Favourite resource
+				.antMatchers(HttpMethod.GET, "/api/favourites").hasRole(RoleBasedAuthority.ROLE_ADMIN.getRole())
+
+				.antMatchers(HttpMethod.GET, "/api/favourites/*/*")
+				.hasAnyRole(RoleBasedAuthority.ROLE_ADMIN.getRole(), RoleBasedAuthority.ROLE_USER.getRole())
+
+				.antMatchers(HttpMethod.POST, "/api/favourites")
+				.hasAnyRole(RoleBasedAuthority.ROLE_ADMIN.getRole(), RoleBasedAuthority.ROLE_USER.getRole())
+
+				.antMatchers(HttpMethod.DELETE, "/api/favourites/*/*")
+				.hasAnyRole(RoleBasedAuthority.ROLE_ADMIN.getRole(), RoleBasedAuthority.ROLE_USER.getRole())
+
 				// Default
 				.antMatchers("/api/**")
 				.hasAnyRole(RoleBasedAuthority.ROLE_USER.getRole(),

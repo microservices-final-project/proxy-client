@@ -1,75 +1,87 @@
 package com.selimhorri.app.business.favourite.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collection;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.selimhorri.app.business.auth.util.AuthUtil;
 import com.selimhorri.app.business.favourite.model.FavouriteDto;
 import com.selimhorri.app.business.favourite.model.ProductDto;
 import com.selimhorri.app.business.favourite.model.UserDto;
 import com.selimhorri.app.business.favourite.model.response.FavouriteFavouriteServiceCollectionDtoResponse;
 import com.selimhorri.app.business.favourite.service.FavouriteClientService;
+import com.selimhorri.app.exception.wrapper.UnauthorizedException;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("FavouriteController Unit Tests")
 class FavouriteControllerTest {
+
+    @Mock
+    private AuthUtil authUtil;
 
     @Mock
     private FavouriteClientService favouriteClientService;
 
-    @InjectMocks
-    private FavouriteController favouriteController;
+    @Mock
+    private HttpServletRequest request;
 
-    private MockMvc mockMvc;
-    private ObjectMapper objectMapper;
+    @Mock
+    private UserDetails userDetails;
+
+    private FavouriteController favouriteController;
     private FavouriteDto favouriteDto;
-    private UserDto userDto;
-    private ProductDto productDto;
+    private FavouriteFavouriteServiceCollectionDtoResponse collectionResponse;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(favouriteController).build();
-        objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
+        // Create controller and inject mocks
+        favouriteController = new FavouriteController(favouriteClientService);
+        ReflectionTestUtils.setField(favouriteController, "authUtil", authUtil);
         
-        // Configurar datos de prueba
-        userDto = UserDto.builder()
+        // Setup UserDto
+        UserDto userDto = UserDto.builder()
                 .userId(1)
                 .firstName("John")
                 .lastName("Doe")
                 .email("john.doe@example.com")
                 .phone("123456789")
-                .imageUrl("http://example.com/user1.jpg")
                 .build();
 
-        productDto = ProductDto.builder()
+        // Setup ProductDto
+        ProductDto productDto = ProductDto.builder()
                 .productId(1)
                 .productTitle("Test Product")
-                .sku("TEST001")
+                .sku("TEST123")
                 .priceUnit(99.99)
                 .quantity(10)
-                .imageUrl("http://example.com/product1.jpg")
                 .build();
 
+        // Setup FavouriteDto
         favouriteDto = FavouriteDto.builder()
                 .userId(1)
                 .productId(1)
@@ -77,167 +89,212 @@ class FavouriteControllerTest {
                 .userDto(userDto)
                 .productDto(productDto)
                 .build();
-    }
 
-    @Test
-    void testFindAll_ShouldReturnAllFavourites() throws Exception {
-        // Given
+        // Setup Collection Response
         Collection<FavouriteDto> favourites = Arrays.asList(favouriteDto);
-        FavouriteFavouriteServiceCollectionDtoResponse response = 
-            FavouriteFavouriteServiceCollectionDtoResponse.builder()
+        collectionResponse = FavouriteFavouriteServiceCollectionDtoResponse.builder()
                 .collection(favourites)
                 .build();
-        
-        when(favouriteClientService.findAll())
-            .thenReturn(new ResponseEntity<>(response, HttpStatus.OK));
-
-        // When & Then
-        mockMvc.perform(get("/api/favourites")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.collection").isArray())
-                .andExpect(jsonPath("$.collection[0].userId").value(1))
-                .andExpect(jsonPath("$.collection[0].productId").value(1));
     }
 
     @Test
-    void testSave_ShouldCreateFavourite_WhenValidData() throws Exception {
+    @DisplayName("Should find all favourites successfully")
+    void findAll_ShouldReturnAllFavourites_WhenCalled() {
         // Given
-        when(favouriteClientService.save(any(FavouriteDto.class)))
-            .thenReturn(new ResponseEntity<>(favouriteDto, HttpStatus.OK));
+        ResponseEntity<FavouriteFavouriteServiceCollectionDtoResponse> serviceResponse = 
+            new ResponseEntity<>(collectionResponse, HttpStatus.OK);
+        when(favouriteClientService.findAll()).thenReturn(serviceResponse);
 
-        // When & Then
-        mockMvc.perform(post("/api/favourites")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(favouriteDto)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.productId").value(1));
+        // When
+        ResponseEntity<FavouriteFavouriteServiceCollectionDtoResponse> result = favouriteController.findAll();
+
+        // Then
+        assertNotNull(result);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(collectionResponse, result.getBody());
+        verify(favouriteClientService, times(1)).findAll();
     }
 
     @Test
-    void testUpdate_ShouldUpdateFavourite_WhenValidData() throws Exception {
+    @DisplayName("Should find favourite by composite ID successfully when user is authorized")
+    void findById_ShouldReturnFavourite_WhenUserIsAuthorized() {
         // Given
-        FavouriteDto updatedFavourite = FavouriteDto.builder()
-                .userId(1)
-                .productId(1)
-                .likeDate(LocalDateTime.now().plusDays(1))
-                .userDto(userDto)
-                .productDto(productDto)
-                .build();
+        String userId = "1";
+        String productId = "1";
+        ResponseEntity<FavouriteDto> serviceResponse = new ResponseEntity<>(favouriteDto, HttpStatus.OK);
         
-        when(favouriteClientService.update(any(FavouriteDto.class)))
-            .thenReturn(new ResponseEntity<>(updatedFavourite, HttpStatus.OK));
+        doNothing().when(authUtil).canActivate(request, userId, userDetails);
+        when(favouriteClientService.findById(userId, productId)).thenReturn(serviceResponse);
 
-        // When & Then
-        mockMvc.perform(put("/api/favourites")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(updatedFavourite)))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.productId").value(1));
+        // When
+        ResponseEntity<FavouriteDto> result = favouriteController.findById(userId, productId, request, userDetails);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(favouriteDto, result.getBody());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(favouriteClientService, times(1)).findById(userId, productId);
     }
 
     @Test
-    void testDeleteById_ShouldReturnTrue_WhenValidIds() throws Exception {
+    @DisplayName("Should throw UnauthorizedException when user is not authorized to find favourite")
+    void findById_ShouldThrowUnauthorizedException_WhenUserIsNotAuthorized() {
         // Given
         String userId = "1";
         String productId = "1";
         
-        when(favouriteClientService.deleteById(userId, productId))
-            .thenReturn(new ResponseEntity<>(true, HttpStatus.OK));
+        doThrow(new UnauthorizedException("You can access to resources of your own"))
+            .when(authUtil).canActivate(request, userId, userDetails);
 
         // When & Then
-        mockMvc.perform(delete("/api/favourites/{userId}/{productId}", userId, productId)
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").value(true));
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            favouriteController.findById(userId, productId, request, userDetails);
+        });
+        
+        assertEquals("You can access to resources of your own", exception.getMessage());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(favouriteClientService, times(0)).findById(anyString(), anyString());
     }
 
     @Test
-    void testSave_ShouldHandleNullUserDto() throws Exception {
+    @DisplayName("Should save favourite successfully when user is authorized")
+    void save_ShouldReturnSavedFavourite_WhenUserIsAuthorized() {
         // Given
-        FavouriteDto favouriteWithoutUser = FavouriteDto.builder()
-                .userId(1)
+        String userId = "1";
+        ResponseEntity<FavouriteDto> serviceResponse = new ResponseEntity<>(favouriteDto, HttpStatus.OK);
+        
+        doNothing().when(authUtil).canActivate(request, userId, userDetails);
+        when(favouriteClientService.save(favouriteDto)).thenReturn(serviceResponse);
+
+        // When
+        ResponseEntity<FavouriteDto> result = favouriteController.save(favouriteDto, request, userDetails);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(favouriteDto, result.getBody());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(favouriteClientService, times(1)).save(favouriteDto);
+    }
+
+    @Test
+    @DisplayName("Should throw UnauthorizedException when user is not authorized to save favourite")
+    void save_ShouldThrowUnauthorizedException_WhenUserIsNotAuthorized() {
+        // Given
+        String userId = "1";
+        
+        doThrow(new UnauthorizedException("You can access to resources of your own"))
+            .when(authUtil).canActivate(request, userId, userDetails);
+
+        // When & Then
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            favouriteController.save(favouriteDto, request, userDetails);
+        });
+        
+        assertEquals("You can access to resources of your own", exception.getMessage());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(favouriteClientService, times(0)).save(any(FavouriteDto.class));
+    }
+
+    @Test
+    @DisplayName("Should delete favourite successfully when user is authorized")
+    void deleteById_ShouldReturnTrue_WhenUserIsAuthorizedAndDeletionSuccessful() {
+        // Given
+        String userId = "1";
+        String productId = "1";
+        ResponseEntity<Boolean> serviceResponse = new ResponseEntity<>(true, HttpStatus.OK);
+        
+        doNothing().when(authUtil).canActivate(request, userId, userDetails);
+        when(favouriteClientService.deleteById(userId, productId)).thenReturn(serviceResponse);
+
+        // When
+        ResponseEntity<Boolean> result = favouriteController.deleteById(userId, productId, request, userDetails);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(true, result.getBody());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(favouriteClientService, times(1)).deleteById(userId, productId);
+    }
+
+    @Test
+    @DisplayName("Should throw UnauthorizedException when user is not authorized to delete favourite")
+    void deleteById_ShouldThrowUnauthorizedException_WhenUserIsNotAuthorized() {
+        // Given
+        String userId = "1";
+        String productId = "1";
+        
+        doThrow(new UnauthorizedException("You can access to resources of your own"))
+            .when(authUtil).canActivate(request, userId, userDetails);
+
+        // When & Then
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class, () -> {
+            favouriteController.deleteById(userId, productId, request, userDetails);
+        });
+        
+        assertEquals("You can access to resources of your own", exception.getMessage());
+        verify(authUtil, times(1)).canActivate(request, userId, userDetails);
+        verify(favouriteClientService, times(0)).deleteById(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should handle null response body from service")
+    void findAll_ShouldHandleNullResponseBody_WhenServiceReturnsNullBody() {
+        // Given
+        ResponseEntity<FavouriteFavouriteServiceCollectionDtoResponse> serviceResponse = 
+            new ResponseEntity<>(null, HttpStatus.OK);
+        when(favouriteClientService.findAll()).thenReturn(serviceResponse);
+
+        // When
+        ResponseEntity<FavouriteFavouriteServiceCollectionDtoResponse> result = favouriteController.findAll();
+
+        // Then
+        assertNotNull(result);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals(null, result.getBody());
+        verify(favouriteClientService, times(1)).findAll();
+    }
+
+    @Test
+    @DisplayName("Should handle empty favourite collection")
+    void findAll_ShouldHandleEmptyCollection_WhenNoFavouritesExist() {
+        // Given
+        Collection<FavouriteDto> emptyFavourites = Arrays.asList();
+        FavouriteFavouriteServiceCollectionDtoResponse emptyResponse = FavouriteFavouriteServiceCollectionDtoResponse.builder()
+                .collection(emptyFavourites)
+                .build();
+        ResponseEntity<FavouriteFavouriteServiceCollectionDtoResponse> serviceResponse = 
+            new ResponseEntity<>(emptyResponse, HttpStatus.OK);
+        when(favouriteClientService.findAll()).thenReturn(serviceResponse);
+
+        // When
+        ResponseEntity<FavouriteFavouriteServiceCollectionDtoResponse> result = favouriteController.findAll();
+
+        // Then
+        assertNotNull(result);
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertNotNull(result.getBody());
+        assertEquals(0, result.getBody().getCollection().size());
+        verify(favouriteClientService, times(1)).findAll();
+    }
+
+    @Test
+    @DisplayName("Should handle favourite with null user ID")
+    void save_ShouldThrowException_WhenUserIdIsNull() {
+        // Given
+        FavouriteDto favouriteWithNullUserId = FavouriteDto.builder()
+                .userId(null)
                 .productId(1)
                 .likeDate(LocalDateTime.now())
-                .productDto(productDto)
                 .build();
-        
-        when(favouriteClientService.save(any(FavouriteDto.class)))
-            .thenReturn(new ResponseEntity<>(favouriteWithoutUser, HttpStatus.OK));
 
         // When & Then
-        mockMvc.perform(post("/api/favourites")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(favouriteWithoutUser)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.productId").value(1))
-                .andExpect(jsonPath("$.userDto").doesNotExist());
-    }
+        assertThrows(NullPointerException.class, () -> {
+            favouriteController.save(favouriteWithNullUserId, request, userDetails);
+        });
 
-    @Test
-    void testSave_ShouldHandleNullProductDto() throws Exception {
-        // Given
-        FavouriteDto favouriteWithoutProduct = FavouriteDto.builder()
-                .userId(1)
-                .productId(1)
-                .likeDate(LocalDateTime.now())
-                .userDto(userDto)
-                .build();
-        
-        when(favouriteClientService.save(any(FavouriteDto.class)))
-            .thenReturn(new ResponseEntity<>(favouriteWithoutProduct, HttpStatus.OK));
-
-        // When & Then
-        mockMvc.perform(post("/api/favourites")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(favouriteWithoutProduct)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.productId").value(1))
-                .andExpect(jsonPath("$.productDto").doesNotExist());
-    }
-
-    @Test
-    void testFindById_WithNumericPathVariables() throws Exception {
-        // Given
-        String userId = "123";
-        String productId = "456";
-        
-        FavouriteDto favourite = FavouriteDto.builder()
-                .userId(123)
-                .productId(456)
-                .likeDate(LocalDateTime.now())
-                .build();
-        
-        when(favouriteClientService.findById(userId, productId))
-            .thenReturn(new ResponseEntity<>(favourite, HttpStatus.OK));
-
-        // When & Then
-        mockMvc.perform(get("/api/favourites/{userId}/{productId}", userId, productId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(123))
-                .andExpect(jsonPath("$.productId").value(456));
-    }
-
-    @Test
-    void testDeleteById_WithNumericPathVariables() throws Exception {
-        // Given
-        String userId = "789";
-        String productId = "101";
-        
-        when(favouriteClientService.deleteById(userId, productId))
-            .thenReturn(new ResponseEntity<>(true, HttpStatus.OK));
-
-        // When & Then
-        mockMvc.perform(delete("/api/favourites/{userId}/{productId}", userId, productId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value(true));
+        verify(favouriteClientService, times(0)).save(any(FavouriteDto.class));
     }
 }
