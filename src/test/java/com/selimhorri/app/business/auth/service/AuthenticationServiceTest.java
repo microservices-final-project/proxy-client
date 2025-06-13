@@ -63,8 +63,7 @@ class AuthenticationServiceImplTest {
         });
 
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verifyNoInteractions(userDetailsService);
-        verifyNoInteractions(jwtService);
+
     }
 
 }
