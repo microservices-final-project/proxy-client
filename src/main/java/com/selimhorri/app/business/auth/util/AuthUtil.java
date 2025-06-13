@@ -11,6 +11,7 @@ import org.springframework.web.client.RestTemplate;
 import com.selimhorri.app.business.auth.enums.ResourceType;
 import com.selimhorri.app.business.order.model.CartDto;
 import com.selimhorri.app.business.order.model.OrderDto;
+import com.selimhorri.app.business.payment.model.PaymentDto;
 import com.selimhorri.app.business.user.model.AddressDto;
 import com.selimhorri.app.business.user.model.CredentialDto;
 import com.selimhorri.app.constant.AppConstant;
@@ -54,9 +55,19 @@ public class AuthUtil {
                 case ORDERS:
                     apiUrl = AppConstant.DiscoveredDomainsApi.ORDER_SERVICE_HOST + "/api/orders/" + id;
                     OrderDto orderDto = restTemplate.getForObject(apiUrl, OrderDto.class);
-                    apiUrl = AppConstant.DiscoveredDomainsApi.ORDER_SERVICE_HOST + "/api/carts/" + orderDto.getCartDto().getCartId();
+                    apiUrl = AppConstant.DiscoveredDomainsApi.ORDER_SERVICE_HOST + "/api/carts/"
+                            + orderDto.getCartDto().getCartId();
                     CartDto orderCartDto = restTemplate.getForObject(apiUrl, CartDto.class);
                     return orderCartDto.getUserDto().getUserId().toString();
+                case PAYMENTS:
+                    apiUrl = AppConstant.DiscoveredDomainsApi.PAYMENT_SERVICE_HOST + "/api/payments/" + id;
+                    PaymentDto paymentDto = restTemplate.getForObject(apiUrl, PaymentDto.class);
+                    apiUrl = AppConstant.DiscoveredDomainsApi.ORDER_SERVICE_HOST + "/api/orders/" + paymentDto.getOrderDto().getOrderId();
+                    OrderDto paymentOrderDto = restTemplate.getForObject(apiUrl, OrderDto.class);
+                    apiUrl = AppConstant.DiscoveredDomainsApi.ORDER_SERVICE_HOST + "/api/carts/"
+                            + paymentOrderDto.getCartDto().getCartId();
+                    CartDto paymentCartDto = restTemplate.getForObject(apiUrl, CartDto.class);
+                    return paymentCartDto.getUserDto().getUserId().toString();
                 default:
                     return null;
             }

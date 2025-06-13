@@ -5,6 +5,7 @@ public enum ResourceType {
     ORDERS,
     PRODUCTS,
     ADDRESSES,
+    PAYMENTS,
     CARTS
     // Agrega otros recursos según tu dominio
 }
