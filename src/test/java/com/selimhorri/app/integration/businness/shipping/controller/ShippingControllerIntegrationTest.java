@@ -1,4 +1,4 @@
-package com.selimhorri.app.integration.businness.favourite.controller;
+package com.selimhorri.app.integration.businness.shipping.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Collection;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -31,28 +30,29 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.selimhorri.app.business.auth.enums.ResourceType;
 import com.selimhorri.app.business.auth.util.AuthUtil;
-import com.selimhorri.app.business.favourite.controller.FavouriteController;
-import com.selimhorri.app.business.favourite.model.FavouriteDto;
-import com.selimhorri.app.business.favourite.model.ProductDto;
-import com.selimhorri.app.business.favourite.model.UserDto;
-import com.selimhorri.app.business.favourite.model.response.FavouriteFavouriteServiceCollectionDtoResponse;
-import com.selimhorri.app.business.favourite.service.FavouriteClientService;
+import com.selimhorri.app.business.orderItem.controller.OrderItemController;
+import com.selimhorri.app.business.orderItem.model.OrderDto;
+import com.selimhorri.app.business.orderItem.model.OrderItemDto;
+import com.selimhorri.app.business.orderItem.model.ProductDto;
+import com.selimhorri.app.business.orderItem.model.response.OrderItemOrderItemServiceDtoCollectionResponse;
+import com.selimhorri.app.business.orderItem.service.OrderItemClientService;
 import com.selimhorri.app.config.template.TemplateConfig;
 import com.selimhorri.app.jwt.service.JwtService;
 import com.selimhorri.app.jwt.util.JwtUtil;
 import com.selimhorri.app.security.SecurityConfig;
 
-@WebMvcTest(FavouriteController.class)
+@WebMvcTest(OrderItemController.class)
 @Import({ TemplateConfig.class, SecurityConfig.class })
 @Tag("integration")
-class FavouriteControllerIntegrationTest {
+class OrderItemControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private FavouriteClientService favouriteClientService;
+    private OrderItemClientService orderItemClientService;
 
     @MockBean
     private PasswordEncoder passwordEncoder;
@@ -72,63 +72,62 @@ class FavouriteControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private FavouriteDto testFavourite;
-    private FavouriteFavouriteServiceCollectionDtoResponse collectionResponse;
+    private OrderItemDto testOrderItem;
+    private OrderItemOrderItemServiceDtoCollectionResponse collectionResponse;
 
     @BeforeEach
     void setUp() {
         // Setup test data
-        testFavourite = createTestFavourite();
-        collectionResponse = FavouriteFavouriteServiceCollectionDtoResponse.builder()
-                .collection(Arrays.asList(testFavourite))
-                .build();
+        testOrderItem = createTestOrderItem();
+        collectionResponse = new OrderItemOrderItemServiceDtoCollectionResponse();
+        collectionResponse.setCollection(Arrays.asList(testOrderItem));
     }
 
-    private FavouriteDto createTestFavourite() {
-        FavouriteDto favourite = new FavouriteDto();
-        favourite.setUserId(1);
-        favourite.setProductId(1);
-        favourite.setLikeDate(LocalDateTime.now());
-
-        // Create user
-        UserDto user = new UserDto();
-        user.setUserId(1);
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        favourite.setUserDto(user);
+    private OrderItemDto createTestOrderItem() {
+        OrderItemDto orderItem = new OrderItemDto();
+        orderItem.setProductId(1);
+        orderItem.setOrderId(1);
+        orderItem.setOrderedQuantity(2);
 
         // Create product
         ProductDto product = new ProductDto();
         product.setProductId(1);
         product.setProductTitle("Test Product");
         product.setPriceUnit(99.99);
-        favourite.setProductDto(product);
+        orderItem.setProductDto(product);
 
-        return favourite;
+        // Create order
+        OrderDto order = new OrderDto();
+        order.setOrderId(1);
+        order.setOrderDate(LocalDateTime.now());
+        order.setOrderStatus("PENDING");
+        orderItem.setOrderDto(order);
+
+        return orderItem;
     }
 
     @Test
     @WithMockUser(roles = "ADMIN")
     void testFindAll_Success() throws Exception {
         // Given
-        when(favouriteClientService.findAll()).thenReturn(ResponseEntity.ok(collectionResponse));
+        when(orderItemClientService.findAll()).thenReturn(ResponseEntity.ok(collectionResponse));
 
         // When & Then
-        mockMvc.perform(get("/api/favourites")
+        mockMvc.perform(get("/api/shippings")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.collection").isArray())
-                .andExpect(jsonPath("$.collection[0].userId").value(1))
                 .andExpect(jsonPath("$.collection[0].productId").value(1))
-                .andExpect(jsonPath("$.collection[0].user.firstName").value("John"))
-                .andExpect(jsonPath("$.collection[0].product.productTitle").value("Test Product"));
+                .andExpect(jsonPath("$.collection[0].orderId").value(1))
+                .andExpect(jsonPath("$.collection[0].product.productTitle").value("Test Product"))
+                .andExpect(jsonPath("$.collection[0].order.orderStatus").value("PENDING"));
     }
 
     @Test
     @WithMockUser(roles = "USER")
     void testFindAll_Forbidden_UserRole() throws Exception {
         // When & Then
-        mockMvc.perform(get("/api/favourites")
+        mockMvc.perform(get("/api/shippings")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
@@ -137,21 +136,21 @@ class FavouriteControllerIntegrationTest {
     @WithMockUser(username = "user1", roles = "USER")
     void testFindById_Success_SameUser() throws Exception {
         // Given
-        String userId = "1";
-        String productId = "1";
+        String orderId = "1";
         UserDetails userDetails = new User("user1", "password",
                 Arrays.asList(new SimpleGrantedAuthority("ROLE_USER")));
 
-        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq(userId), any(UserDetails.class));
-        when(favouriteClientService.findById(userId, productId)).thenReturn(ResponseEntity.ok(testFavourite));
+        // Mock AuthUtil to return the same user ID as the order owner
+        when(authUtil.getOwner(eq(orderId), any(ResourceType.class))).thenReturn("1");
+        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq("1"), any(UserDetails.class));
+        when(orderItemClientService.findById(orderId)).thenReturn(ResponseEntity.ok(testOrderItem));
 
         // When & Then
-        mockMvc.perform(get("/api/favourites/{userId}/{productId}", userId, productId)
+        mockMvc.perform(get("/api/shippings/{orderId}", orderId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(1))
                 .andExpect(jsonPath("$.productId").value(1))
-                .andExpect(jsonPath("$.user.firstName").value("John"))
+                .andExpect(jsonPath("$.orderId").value(1))
                 .andExpect(jsonPath("$.product.productTitle").value("Test Product"));
     }
 
@@ -159,61 +158,66 @@ class FavouriteControllerIntegrationTest {
     @WithMockUser(username = "admin", roles = "ADMIN")
     void testFindById_Success_Admin() throws Exception {
         // Given
-        String userId = "1";
-        String productId = "1";
+        String orderId = "1";
         UserDetails userDetails = new User("admin", "password",
                 Arrays.asList(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
-        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq(userId), any(UserDetails.class));
-        when(favouriteClientService.findById(userId, productId)).thenReturn(ResponseEntity.ok(testFavourite));
+        // Mock AuthUtil to return any user ID (admin can access all)
+        when(authUtil.getOwner(eq(orderId), any(ResourceType.class))).thenReturn("1");
+        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq("1"), any(UserDetails.class));
+        when(orderItemClientService.findById(orderId)).thenReturn(ResponseEntity.ok(testOrderItem));
 
         // When & Then
-        mockMvc.perform(get("/api/favourites/{userId}/{productId}", userId, productId)
+        mockMvc.perform(get("/api/shippings/{orderId}", orderId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.productId").value(1));
+                .andExpect(jsonPath("$.productId").value(1))
+                .andExpect(jsonPath("$.orderId").value(1));
     }
+
 
     @Test
     @WithMockUser(username = "user1", roles = "USER")
     void testSave_Success() throws Exception {
         // Given
-        FavouriteDto newFavourite = new FavouriteDto();
-        newFavourite.setUserId(1); // Same as authenticated user
-        newFavourite.setProductId(2);
-        newFavourite.setLikeDate(LocalDateTime.now());
+        OrderItemDto newOrderItem = new OrderItemDto();
+        newOrderItem.setProductId(2);
+        newOrderItem.setOrderId(1);
+        newOrderItem.setOrderedQuantity(3);
 
-        FavouriteDto savedFavourite = new FavouriteDto();
-        savedFavourite.setUserId(1);
-        savedFavourite.setProductId(2);
-        savedFavourite.setLikeDate(LocalDateTime.now());
+        OrderItemDto savedOrderItem = new OrderItemDto();
+        savedOrderItem.setProductId(2);
+        savedOrderItem.setOrderId(1);
+        savedOrderItem.setOrderedQuantity(3);
 
-        // Mock AuthUtil to verify user can only save favourite for themselves
+        // Mock AuthUtil to verify user can only save order item for their own order
+        when(authUtil.getOwner(eq("1"), any(ResourceType.class))).thenReturn("1");
         doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq("1"), any(UserDetails.class));
-        when(favouriteClientService.save(any(FavouriteDto.class))).thenReturn(ResponseEntity.ok(savedFavourite));
+        when(orderItemClientService.save(any(OrderItemDto.class))).thenReturn(ResponseEntity.ok(savedOrderItem));
 
         // When & Then
-        mockMvc.perform(post("/api/favourites")
+        mockMvc.perform(post("/api/shippings")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(newFavourite)))
+                .content(objectMapper.writeValueAsString(newOrderItem)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(1))
-                .andExpect(jsonPath("$.productId").value(2));
+                .andExpect(jsonPath("$.productId").value(2))
+                .andExpect(jsonPath("$.orderId").value(1))
+                .andExpect(jsonPath("$.orderedQuantity").value(3));
     }
 
     @Test
     @WithMockUser(username = "user1", roles = "USER")
     void testDeleteById_Success() throws Exception {
         // Given
-        String userId = "1"; // Same as authenticated user
-        String productId = "1";
-
-        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq(userId), any(UserDetails.class));
-        when(favouriteClientService.deleteById(userId, productId)).thenReturn(ResponseEntity.ok(true));
+        String orderId = "1";
+        
+        // Mock AuthUtil to return the same user ID as the order owner
+        when(authUtil.getOwner(eq(orderId), any(ResourceType.class))).thenReturn("1");
+        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq("1"), any(UserDetails.class));
+        when(orderItemClientService.deleteById(orderId)).thenReturn(ResponseEntity.ok(true));
 
         // When & Then
-        mockMvc.perform(delete("/api/favourites/{userId}/{productId}", userId, productId)
+        mockMvc.perform(delete("/api/shippings/{orderId}", orderId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(true));
@@ -223,17 +227,19 @@ class FavouriteControllerIntegrationTest {
     @WithMockUser(username = "admin", roles = "ADMIN")
     void testDeleteById_Success_Admin() throws Exception {
         // Given
-        String userId = "1"; // Different from admin user but allowed for admin
-        String productId = "1";
-
-        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq(userId), any(UserDetails.class));
-        when(favouriteClientService.deleteById(userId, productId)).thenReturn(ResponseEntity.ok(true));
+        String orderId = "1";
+        
+        // Mock AuthUtil to return any user ID (admin can access all)
+        when(authUtil.getOwner(eq(orderId), any(ResourceType.class))).thenReturn("2");
+        doNothing().when(authUtil).canActivate(any(HttpServletRequest.class), eq("2"), any(UserDetails.class));
+        when(orderItemClientService.deleteById(orderId)).thenReturn(ResponseEntity.ok(true));
 
         // When & Then
-        mockMvc.perform(delete("/api/favourites/{userId}/{productId}", userId, productId)
+        mockMvc.perform(delete("/api/shippings/{orderId}", orderId)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value(true));
     }
+
 
 }
