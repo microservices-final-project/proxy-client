@@ -1,4 +1,4 @@
-package com.selimhorri.app.integration.businness.user;
+package com.selimhorri.app.integration.businness.user.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
